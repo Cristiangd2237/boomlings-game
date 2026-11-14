@@ -53,7 +53,7 @@ main{width:min(760px,100%)}h1{text-align:center;margin:4px 0 2px;font-size:clamp
    <button class="action" id="freeze">❄ FREEZE <span id="freezeCount">1</span></button>
    <button class="action" id="hintBtn">💡 HINT</button>
   </div>
-  <div class="hint">On mobile, swipe a tile toward a neighbor or tap two neighboring tiles. Match 3 or more of the same color in a row or column. Larger matches and cascades score more!</div>
+  <div class="hint">Swipe a tile into an empty space, or tap a tile then an empty space. Match 3 or more of the same color in a row or column. Larger matches and cascades score more!</div>
  </aside>
 </div>
 <div class="message" id="message">Make your first match!</div>
@@ -90,7 +90,7 @@ function render(){
  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
   const t=grid[r][c],el=document.createElement("button");el.className="tile"+(holes.has(r+","+c)?" empty":"")+(selected&&selected.r===r&&selected.c===c?" selected":"");
   el.dataset.r=r;el.dataset.c=c;
-  if(holes.has(r+","+c)){el.disabled=true;el.setAttribute("aria-label","Empty space");}
+  if(holes.has(r+","+c)){el.setAttribute("aria-label","Empty space — tap a neighboring tile, then here");el.addEventListener("click",()=>{if(Date.now()<suppressClickUntil)return;tap(r,c)});}
   else{
    el.style.background=t.c==="red"?"linear-gradient(#ff7777,#b92132)":`linear-gradient(${paint[t.c]},${paint[t.c]}bb)`;
    el.setAttribute("aria-label",t.c+" tile");
@@ -110,16 +110,33 @@ function matches(){
  for(let c=0;c<N;c++){let r=0;while(r<N){if(!grid[r][c]){r++;continue}let e=r+1;while(e<N&&grid[e][c]&&grid[e][c].c===grid[r][c].c)e++;if(e-r>=3)for(let x=r;x<e;x++)found.add(x*N+c);r=e}}
  return [...found];
 }
-function swap(a,b){if(holes.has(a.r+","+a.c)||holes.has(b.r+","+b.c))return;let t=grid[a.r][a.c];grid[a.r][a.c]=grid[b.r][b.c];grid[b.r][b.c]=t}
+function swap(a,b){
+ const ak=a.r+","+a.c,bk=b.r+","+b.c;
+ const ah=holes.has(ak),bh=holes.has(bk);
+ if(ah&&bh)return;
+ if(ah||bh){
+  const empty=ah?a:b,full=ah?b:a,ek=empty.r+","+empty.c,fk=full.r+","+full.c;
+  grid[empty.r][empty.c]=grid[full.r][full.c];
+  grid[full.r][full.c]=null;
+  holes.delete(ek);holes.add(fk);
+  return;
+ }
+ const t=grid[a.r][a.c];grid[a.r][a.c]=grid[b.r][b.c];grid[b.r][b.c]=t;
+}
 function tap(r,c){
- if(!started||paused||busy||holes.has(r+","+c))return;
- if(!selected){selected={r,c};render();return}
+ if(!started||paused||busy)return;
+ const destinationIsHole=holes.has(r+","+c);
+ if(!selected){
+  if(destinationIsHole)return;
+  selected={r,c};render();return;
+ }
  const a=selected,b={r,c};selected=null;
  if(a.r===r&&a.c===c){render();return}
- // Free-move mode: swap the selected tile with the exact destination tile.
- swap(a,b);let m=matches();
+ // Dropping a tile into an empty space moves the empty space to the tile's old cell.
+ swap(a,b);
+ let m=matches();
  if(!m.length){
-  render();$("message").textContent="Tiles moved — they stay where you put them";
+  render();$("message").textContent=destinationIsHole?"Tile moved into the empty space!":"Tiles moved — they stay where you put them";
   return;
  }
  busy=true;render();resolveMatches(1);
@@ -199,7 +216,7 @@ const boardEl=$("board");
 let swipeStart=null;
 function beginDrag(e){
  const tile=e.target.closest&&e.target.closest(".tile");
- if(!tile||!started||paused||busy)return;
+ if(!tile||tile.classList.contains("empty")||!started||paused||busy)return;
  swipeStart={r:Number(tile.dataset.r),c:Number(tile.dataset.c),x:e.clientX,y:e.clientY};
 }
 function finishDrag(x,y){
