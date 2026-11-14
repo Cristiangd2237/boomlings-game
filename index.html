@@ -107,8 +107,8 @@ function tap(r,c){
  if(Math.abs(a.r-r)+Math.abs(a.c-c)!==1){selected=b;render();return}
  swap(a,b);let m=matches();
  if(!m.length){
-  busy=true;render();
-  setTimeout(()=>{swap(a,b);busy=false;render();$("message").textContent="No match — try another swap";},180);
+  // Free-swap mode: keep the tiles in their new positions even without a match.
+  render();$("message").textContent="Tiles moved — make matches whenever you like";
   return;
  }
  busy=true;render();resolveMatches(1);
