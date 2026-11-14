@@ -243,7 +243,6 @@ function finishDrag(x,y){
 }
 // Unified Pointer Events handle mouse, pen, and touch consistently.
 boardEl.addEventListener("pointerdown",e=>{
- if(e.pointerType==="touch")e.preventDefault();
  beginDrag(e);
 },{passive:false});
 window.addEventListener("pointerup",e=>{
