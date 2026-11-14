@@ -157,28 +157,56 @@ $("start").onclick=()=>{if($("overlay").querySelector("h2").textContent==="LEVEL
 $("restart").onclick=()=>{started=false;paused=true;if(tick)clearInterval(tick);score=0;level=1;time=90;coins=0;boom=1;freeze=1;freezeUntil=0;$("overlay").style.display="grid";$("overlay").querySelector("h2").textContent="BOOMLINGS";$("overlay").querySelector("p").textContent="Match 3 or more same-color tiles before time runs out. Reach the target to advance!";$("start").textContent="PLAY";render()};
 const boardEl=$("board");
 let swipeStart=null;
-boardEl.addEventListener("pointerdown",e=>{
- const tile=e.target.closest(".tile");
+function beginDrag(e){
+ const tile=e.target.closest&&e.target.closest(".tile");
  if(!tile||!started||paused||busy)return;
- e.preventDefault();
- swipeStart={r:Number(tile.dataset.r),c:Number(tile.dataset.c),x:e.clientX,y:e.clientY,id:e.pointerId};
-});
-window.addEventListener("pointerup",e=>{
+ swipeStart={r:Number(tile.dataset.r),c:Number(tile.dataset.c),x:e.clientX,y:e.clientY};
+}
+function finishDrag(x,y){
  if(!swipeStart)return;
  const start=swipeStart;swipeStart=null;
- if(e.pointerId!==start.id)return;
- const dx=e.clientX-start.x,dy=e.clientY-start.y;
- if(Math.hypot(dx,dy)<12)return;
- const under=document.elementFromPoint(e.clientX,e.clientY);
- const dest=under&&under.closest?under.closest(".tile"):null;
- if(!dest||!boardEl.contains(dest))return;
- const rr=Number(dest.dataset.r),cc=Number(dest.dataset.c);
+ if(Math.hypot(x-start.x,y-start.y)<10)return;
+ let dest=document.elementFromPoint(x,y);
+ dest=dest&&dest.closest?dest.closest(".tile"):null;
+ let rr,cc;
+ if(dest&&boardEl.contains(dest)){
+  rr=Number(dest.dataset.r);cc=Number(dest.dataset.c);
+ }else{
+  const rect=boardEl.getBoundingClientRect(),style=getComputedStyle(boardEl);
+  const gap=parseFloat(style.columnGap)||0;
+  const cell=(rect.width-gap*(N-1))/N;
+  cc=Math.floor((x-rect.left)/(cell+gap));
+  rr=Math.floor((y-rect.top)/(cell+gap));
+  cc=Math.max(0,Math.min(N-1,cc));rr=Math.max(0,Math.min(N-1,rr));
+ }
  if(!Number.isInteger(rr)||!Number.isInteger(cc)||(rr===start.r&&cc===start.c))return;
- suppressClickUntil=Date.now()+650;
+ suppressClickUntil=Date.now()+700;
  selected={r:start.r,c:start.c};
  tap(rr,cc);
+}
+// Mouse / trackpad dragging.
+boardEl.addEventListener("pointerdown",e=>{
+ if(e.pointerType==="touch")return;
+ beginDrag(e);
+});
+window.addEventListener("pointerup",e=>{
+ if(e.pointerType==="touch")return;
+ finishDrag(e.clientX,e.clientY);
 });
 window.addEventListener("pointercancel",()=>{swipeStart=null});
+// Explicit touch handlers for iPhone/iPad Safari.
+boardEl.addEventListener("touchstart",e=>{
+ if(!e.changedTouches.length)return;
+ const t=e.changedTouches[0];
+ beginDrag({target:e.target,clientX:t.clientX,clientY:t.clientY});
+},{passive:false});
+boardEl.addEventListener("touchmove",e=>{if(swipeStart)e.preventDefault()},{passive:false});
+window.addEventListener("touchend",e=>{
+ if(!swipeStart||!e.changedTouches.length)return;
+ const t=e.changedTouches[0];
+ finishDrag(t.clientX,t.clientY);
+},{passive:false});
+window.addEventListener("touchcancel",()=>{swipeStart=null});
 initialBoard();render();
 </script>
 </body>
