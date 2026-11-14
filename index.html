@@ -87,7 +87,7 @@ function render(){
   if(t.c==="red"||t.c==="blue"||t.c==="orange"){let im=document.createElement("img");im.src=t.c==="red"?RED_IMAGE:t.c==="blue"?BLUE_IMAGE:ORANGE_IMAGE;im.alt="";el.append(im)}
   else {let gem=document.createElement("span");gem.className="gem";gem.style.background=paint[t.c];el.append(gem)}
   if(t.special){let sp=document.createElement("span");sp.className="special";sp.textContent=t.special==="bomb"?"✹":"★";el.append(sp)}
-  el.addEventListener("click",()=>tap(r,c));b.append(el);
+  el.addEventListener("click",()=>{if(Date.now()<suppressClickUntil)return;tap(r,c)});b.append(el);
  }
  $("score").textContent=score.toLocaleString();$("target").textContent=targetFor().toLocaleString();$("goalScore").textContent=targetFor().toLocaleString();$("time").textContent=time;$("level").textContent=level;$("coins").textContent=coins;$("boomCount").textContent=boom;$("freezeCount").textContent=freeze;
  $("progress").style.width=Math.min(100,score/targetFor()*100)+"%";
@@ -109,24 +109,28 @@ function tap(r,c){
  if(!m.length){setTimeout(()=>{swap(a,b);render();$("message").textContent="No match — try another swap";},100);render();return}
  render();resolveMatches(1);
 }
-// Mobile touch: swipe from one tile toward a neighboring tile to swap.
-let pointerStart=null;
+// Swipe a tile one space to swap it. Capture the pointer so iPhone Safari
+// still delivers pointerup if the finger drifts off the tile/board.
+let pointerStart=null,suppressClickUntil=0;
 $("board").addEventListener("pointerdown",ev=>{
  const tile=ev.target.closest(".tile");if(!tile||!started||paused||busy)return;
- const tiles=[...$("board").children],index=tiles.indexOf(tile);
- if(index<0)return;
- pointerStart={x:ev.clientX,y:ev.clientY,index};
+ const index=[...$("board").children].indexOf(tile);if(index<0)return;
+ pointerStart={x:ev.clientX,y:ev.clientY,index,id:ev.pointerId};
+ try{$("board").setPointerCapture(ev.pointerId)}catch(_e){}
+ ev.preventDefault();
 });
 $("board").addEventListener("pointerup",ev=>{
- if(!pointerStart)return;
+ if(!pointerStart||ev.pointerId!==pointerStart.id)return;
  const start=pointerStart;pointerStart=null;
  const dx=ev.clientX-start.x,dy=ev.clientY-start.y;
- if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<22)return;
+ suppressClickUntil=Date.now()+700;
  const row=Math.floor(start.index/N),col=start.index%N;
  let rr=row,cc=col;
  if(Math.abs(dx)>Math.abs(dy))cc+=dx>0?1:-1;else rr+=dy>0?1:-1;
  if(rr<0||rr>=N||cc<0||cc>=N)return;
  selected={r:row,c:col};tap(rr,cc);
+ ev.preventDefault();
 });
 $("board").addEventListener("pointercancel",()=>{pointerStart=null});
 async function resolveMatches(combo){
