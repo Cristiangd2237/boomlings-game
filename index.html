@@ -241,29 +241,16 @@ function finishDrag(x,y){
  selected={r:start.r,c:start.c};
  tap(rr,cc);
 }
-// Mouse / trackpad dragging.
+// Unified Pointer Events handle mouse, pen, and touch consistently.
 boardEl.addEventListener("pointerdown",e=>{
- if(e.pointerType==="touch")return;
+ if(e.pointerType==="touch")e.preventDefault();
  beginDrag(e);
-});
+},{passive:false});
 window.addEventListener("pointerup",e=>{
- if(e.pointerType==="touch")return;
  finishDrag(e.clientX,e.clientY);
 });
 window.addEventListener("pointercancel",()=>{swipeStart=null});
-// Explicit touch handlers for iPhone/iPad Safari.
-boardEl.addEventListener("touchstart",e=>{
- if(!e.changedTouches.length)return;
- const t=e.changedTouches[0];
- beginDrag({target:e.target,clientX:t.clientX,clientY:t.clientY});
-},{passive:false});
-boardEl.addEventListener("touchmove",e=>{if(swipeStart)e.preventDefault()},{passive:false});
-window.addEventListener("touchend",e=>{
- if(!swipeStart||!e.changedTouches.length)return;
- const t=e.changedTouches[0];
- finishDrag(t.clientX,t.clientY);
-},{passive:false});
-window.addEventListener("touchcancel",()=>{swipeStart=null});
+// Click/tap selection remains available; drag-and-drop uses the same tap() move logic.
 initialBoard();render();
 </script>
 </body>
