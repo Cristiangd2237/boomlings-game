@@ -113,6 +113,33 @@ function tap(r,c){
  }
  busy=true;render();resolveMatches(1);
 }
+async function resolveMatches(combo){
+ busy=true;
+ try{
+  while(true){
+   let m=matches();if(!m.length)break;
+   let points=m.length*60*combo;
+   if(m.length>=4)points+=250*combo;
+   score+=points;coins+=Math.max(1,Math.floor(m.length/4))*combo;
+   $("message").textContent=(combo>1?"Cascade x"+combo+"! ":"")+m.length+" tiles · +"+points;
+   if(m.length>=4){let idx=m[Math.floor(m.length/2)],rr=Math.floor(idx/N),cc=idx%N;grid[rr][cc].special="bomb";m=m.filter(x=>x!==idx)}
+   for(const idx of m){let rr=Math.floor(idx/N),cc=idx%N;grid[rr][cc]=null}
+   render();await delay(160);
+   for(let c=0;c<N;c++){
+    let remaining=[];
+    for(let r=N-1;r>=0;r--)if(grid[r][c])remaining.push(grid[r][c]);
+    for(let r=N-1;r>=0;r--){let i=N-1-r;grid[r][c]=i<remaining.length?remaining[i]:makeTile(randomColor())}
+   }
+   render();await delay(160);combo++;
+  }
+ }catch(err){
+  console.error("Tile resolution error:",err);
+  $("message").textContent="Board recovered — keep playing!";
+ }finally{
+  busy=false;selected=null;render();
+ }
+ if(score>=targetFor()){level++;time=Math.min(120,time+15);boom++;freeze++;$("message").textContent="Level cleared! +15 seconds and bonus power-ups";render()}
+}
 function delay(ms){return new Promise(res=>setTimeout(res,ms))}
 function setMessage(s){$("message").textContent=s}
 function findHint(){
